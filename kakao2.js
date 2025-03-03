@@ -1,3 +1,4 @@
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
 
@@ -13,8 +14,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-
-document.getElementById('sendKakao').addEventListener('click', async () => {
+async function sendKakaoHandler() {
    try {
     const docRef = doc(db, "회원가입계약서", window.docId);
     const docSnap = await getDoc(docRef);
@@ -39,7 +39,7 @@ document.getElementById('sendKakao').addEventListener('click', async () => {
         'senderkey': 'b4c886fa9bd3cbf1faddb759fa6532867844ef03',
         'tpl_code': 'TY_1680',
         'sender': '01092792273',
-        'receiver_1': '01086871992',
+        'receiver_1': userData.contact,
         'subject_1': '계약서',
         'message_1': `[${회사명}]\n안녕하세요. ${고객명}님!\n${회사명}에 등록해주셔서 진심으로 감사드립니다!`,
         'button_1': `{
@@ -64,9 +64,16 @@ document.getElementById('sendKakao').addEventListener('click', async () => {
 
     const result = await response.json();
     console.log('카카오 알림톡 전송 결과:', result);
+    if (result.code === 0 && result.message === '성공적으로 전송요청 하였습니다.') {
+      window.dispatchEvent(new Event('kakaoSendSuccess'));
+    }
     alert('알림톡이 전송되었습니다.');
   } catch (error) {
     console.error('카카오 알림톡 전송 실패:', error);
     alert('알림톡 전송에 실패했습니다.');
   }
-});
+}
+
+// Add event listeners
+document.getElementById('sendKakao').addEventListener('click', sendKakaoHandler);
+document.getElementById('sendKakao').addEventListener('touchstart', sendKakaoHandler);
