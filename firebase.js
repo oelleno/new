@@ -66,7 +66,7 @@ async function submitForm() {
 
             // 생성된 docId를 전역 변수에 저장
             window.docId = `${dateStr}_${dailyNumber}_${name}`;
-            console.log("생성된 Doc ID:", window.docId);
+            console.log("🚀 생성된 Doc ID:", window.docId);
 
             // 저장할 데이터
             const userData = {
@@ -125,7 +125,6 @@ async function submitForm() {
 
             // Firestore에 저장
             await setDoc(doc(db, "회원가입계약서", docId), userData);
-            alert("회원 정보가 성공적으로 저장되었습니다!");
             resolve();
         } catch (error) {
             console.error("회원 정보 저장 중 오류 발생:", error);

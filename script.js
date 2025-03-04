@@ -5,6 +5,8 @@ async function handleSubmit() {
 
     // Then generate and download image
     downloadAsImage();
+    // ✅ Firestore에 `imageUrl`이 저장된 후 버튼 활성화
+    //document.getElementById('sendKakao').style.display = 'block'; //Removed as per request
   } catch (error) {
     console.error("Error submitting form:", error);
     alert(error.message || "양식 제출 중 오류가 발생했습니다.");
@@ -12,7 +14,7 @@ async function handleSubmit() {
 }
 
 function validateForm() {
-  const requiredFields = ['name', 'contact', 'userpw_re', 'main_address', 'membership'];
+  const requiredFields = ['name', 'contact', 'birthdate', 'main_address', 'membership'];
   for (const fieldId of requiredFields) {
     const field = document.getElementById(fieldId);
     if (!field || !field.value.trim()) {
@@ -126,65 +128,33 @@ function downloadAsImage() {
             align-items: center;
           `;
 
-          // Create contract copy button (sendKakao)
-          const contractBtn = document.createElement('button');
-          contractBtn.textContent = '계약서 사본발송';
-          contractBtn.onclick = function() {
-            if (!window.docId) {
-              alert('계약서 번호를 찾을 수 없습니다.');
-              return;
-            }
-            const sendKakaoBtn = document.getElementById('sendKakao');
-            if (!sendKakaoBtn) {
-              alert('카카오 발송 버튼을 찾을 수 없습니다.');
-              return;
-            }
-            sendKakaoBtn.click();
-            
-            // Add event listener for successful Kakao send
-            window.addEventListener('kakaoSendSuccess', () => {
-              contractBtn.textContent = '계약서 전송완료!';
-              contractBtn.disabled = true;
-            }, { once: true });
-          };
-          contractBtn.style.cssText = `
-            padding: 10px 20px;
-            background: #FEE500;
-            color: #000000;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-            width: 200px;
-          `;
-
-          // Create receipt button
+          // 영수증 저장 버튼 생성
           const receiptBtn = document.createElement('button');
           receiptBtn.textContent = '영수증 저장';
           receiptBtn.onclick = function() {
-            if (!window.docId) {
-              alert('계약서 번호를 찾을 수 없습니다.');
-              return;
-            }
-            localStorage.setItem('receipt_doc_id', window.docId);
-            window.location.href = 'receipt.html';
+              if (!window.docId) {
+                  alert('계약서 번호를 찾을 수 없습니다.');
+                  return;
+              }
+              localStorage.setItem('receipt_doc_id', window.docId);
+              window.location.href = 'receipt.html';
           };
           receiptBtn.style.cssText = `
-            padding: 10px 20px;
-            background: #0078D7;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-            width: 200px;
+              padding: 10px 20px;
+              background: #0078D7;
+              color: white;
+              border: none;
+              border-radius: 5px;
+              cursor: pointer;
+              font-weight: bold;
+              font-size: 16px;
+              width: 200px;
           `;
 
-          buttonContainer.appendChild(contractBtn);
+          // 버튼을 팝업에 추가
           buttonContainer.appendChild(receiptBtn);
           popup.appendChild(buttonContainer);
+
 
         }, 1000);
       }, 1000);
@@ -355,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function sendit() {
   const name = document.getElementById('name'); // 이름
   const contact = document.getElementById('contact'); // 연락처
-  const birthdate = document.getElementById('userpw_re'); // 생년월일
+  const birthdate = document.getElementById('birthdate'); // 생년월일
   const membership = document.getElementById('membership'); // 회원권 선택
   const rentalMonths = document.getElementById('rental_months'); // 운동복 대여 개월수
   const lockerMonths = document.getElementById('locker_months'); // 라커 대여 개월수
@@ -594,158 +564,199 @@ function updatePaymentSummary() {
 }
 
 function showCardPaymentPopup() {
-  const popup = document.createElement('div');
-  popup.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.3);
-    z-index: 1000;
-    min-width: 300px;
-    font-size: 16px; /* Increased font size */
-  `;
-
-  const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    z-index: 999;
-  `;
-
-  const paymentContainer = document.createElement('div');
-  paymentContainer.id = 'payment-items';
-  paymentContainer.style.marginBottom = '20px';
-
-  // Total amount display
-  const totalDisplay = document.createElement('div');
-  totalDisplay.style.cssText = `
-    margin-top: 20px;
-    padding: 10px;
-    background: #f5f5f5;
-    border-radius: 5px;
-    text-align: right;
-    font-weight: bold;
-    font-size: 16px; /* Increased font size */
-  `;
-  totalDisplay.textContent = '합계: ₩ 0';
-
-  function addPaymentRow() {
-    const row = document.createElement('div');
-    row.style.cssText = `
-      display: flex;
-      gap: 10px;
-      margin-bottom: 10px;
-      align-items: center;
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      z-index: 1000;
+      min-width: 300px;
+      font-size: 16px; /* Increased font size */
     `;
 
-    const addBtn = document.createElement('button');
-    addBtn.innerHTML = '+';
-    addBtn.style.cssText = `
-      width: 30px;
-      height: 30px;
-      border-radius: 4px;
-      border: none;
-      background: #4CAF50;
-      color: white;
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
     `;
-    addBtn.onclick = addPaymentRow;
 
-    const descInput = document.createElement('input');
-    descInput.type = 'text';
-    descInput.style.cssText = 'width: 150px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px;';
-    descInput.placeholder = '결제 내용';
+    const paymentContainer = document.createElement('div');
+    paymentContainer.id = 'payment-items';
+    paymentContainer.style.marginBottom = '20px';
 
-    const amountInput = document.createElement('input');
-    amountInput.type = 'text';
-    amountInput.style.cssText = 'width: 150px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px;';
-    amountInput.placeholder = '(₩)금액입력';
-    amountInput.setAttribute('inputmode', 'numeric');
-    amountInput.oninput = function() {
-      formatCurrency(this);
-      updateTotal();
-    };
-    amountInput.onkeypress = function(e) {
-      if (e.key === 'Enter') {
-        confirmButton.click();
+    // Total amount display
+    const totalDisplay = document.createElement('div');
+    totalDisplay.style.cssText = `
+      margin-top: 20px;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 5px;
+      text-align: right;
+      font-weight: bold;
+      font-size: 16px; /* Increased font size */
+    `;
+    totalDisplay.textContent = '합계: ₩ 0';
+
+    function addPaymentRow(description = '', isReadOnly = false, isFaded = false) {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+      `;
+
+      const addBtn = document.createElement('button');
+      addBtn.innerHTML = '+';
+      addBtn.style.cssText = `
+        width: 30px;
+        height: 30px;
+        border-radius: 4px;
+        border: none;
+        background: #4CAF50;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      addBtn.onclick = function() { 
+        addPaymentRow(); 
+      };
+
+      const descInput = document.createElement('input');
+      descInput.type = 'text';
+      descInput.style.cssText = 'width: 150px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px;';
+      descInput.placeholder = '결제 내용';
+      if (description) {
+        descInput.value = description;
       }
-    };
+      
+      // Apply read-only and faded styling if needed
+      if (isReadOnly) {
+        descInput.readOnly = true;
+        descInput.style.backgroundColor = '#f5f5f5';
+      }
+      
+      if (isFaded) {
+        descInput.style.color = '#aaa';
+        descInput.style.fontStyle = 'italic';
+        
+        // Add focus and input event listeners to handle placeholder behavior
+        descInput.addEventListener('focus', function() {
+          if (this.value === '(직접입력)') {
+            this.value = '';
+            this.style.color = '#000';
+            this.style.fontStyle = 'normal';
+          }
+        });
+        
+        descInput.addEventListener('blur', function() {
+          if (this.value === '') {
+            this.value = '(직접입력)';
+            this.style.color = '#aaa';
+            this.style.fontStyle = 'italic';
+          }
+        });
+        
+        descInput.addEventListener('input', function() {
+          this.style.color = '#000';
+          this.style.fontStyle = 'normal';
+        });
+      }
 
-    const deleteBtn = document.createElement('button');
-    deleteBtn.innerHTML = '×';
-    deleteBtn.style.cssText = `
-      width: 30px;
-      height: 30px;
-      border-radius: 4px;
-      border: none;
-      background: #ff4444;
+      const amountInput = document.createElement('input');
+      amountInput.type = 'text';
+      amountInput.style.cssText = 'width: 150px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px;';
+      amountInput.placeholder = '(₩)금액입력';
+      amountInput.setAttribute('inputmode', 'numeric');
+      amountInput.oninput = function() {
+        formatCurrency(this);
+        updateTotal();
+      };
+      amountInput.onkeypress = function(e) {
+        if (e.key === 'Enter') {
+          confirmButton.click();
+        }
+      };
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.innerHTML = '×';
+      deleteBtn.style.cssText = `
+        width: 30px;
+        height: 30px;
+        border-radius: 4px;
+        border: none;
+        background: #ff4444;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      deleteBtn.onclick = function() {
+        row.remove();
+        updateTotal();
+      };
+
+      row.appendChild(addBtn);
+      row.appendChild(descInput);
+      row.appendChild(amountInput);
+      row.appendChild(deleteBtn);
+      paymentContainer.appendChild(row);
+    }
+
+    function updateTotal() {
+      let total = 0;
+      paymentContainer.querySelectorAll('input[type="text"]:nth-child(3)').forEach(input => {
+        const value = parseInt(input.value.replace(/[^\d]/g, '')) || 0;
+        total += value;
+      });
+      totalDisplay.textContent = '합계: ₩ ' + total.toLocaleString('ko-KR');
+    }
+
+    const confirmButton = document.createElement('button');
+    confirmButton.textContent = '확인';
+    confirmButton.style.cssText = `
+      padding: 8px 20px;
+      background: #0078D7;
       color: white;
-      font-size: 18px;
+      border: none;
+      border-radius: 5px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      float: right;
+      font-size: 16px; /* Increased font size */
     `;
-    deleteBtn.onclick = function() {
-      row.remove();
-      updateTotal();
+
+    confirmButton.onclick = function() {
+      updatePaymentSummary();
+      document.body.removeChild(overlay);
+      document.body.removeChild(popup);
     };
 
-    row.appendChild(addBtn);
-    row.appendChild(descInput);
-    row.appendChild(amountInput);
-    row.appendChild(deleteBtn);
-    paymentContainer.appendChild(row);
+    popup.appendChild(paymentContainer);
+    popup.appendChild(totalDisplay);
+    popup.appendChild(confirmButton);
+    document.body.appendChild(overlay);
+    document.body.appendChild(popup);
+
+    // Add default payment options
+    addPaymentRow('카드', true);
+    addPaymentRow('현금', true);
+    addPaymentRow('계좌이체', true);
   }
-
-  function updateTotal() {
-    let total = 0;
-    paymentContainer.querySelectorAll('input[type="text"]:nth-child(3)').forEach(input => {
-      const value = parseInt(input.value.replace(/[^\d]/g, '')) || 0;
-      total += value;
-    });
-    totalDisplay.textContent = '합계: ₩ ' + total.toLocaleString('ko-KR');
-  }
-
-  const confirmButton = document.createElement('button');
-  confirmButton.textContent = '확인';
-  confirmButton.style.cssText = `
-    padding: 8px 20px;
-    background: #0078D7;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    float: right;
-    font-size: 16px; /* Increased font size */
-  `;
-
-  confirmButton.onclick = function() {
-    updatePaymentSummary();
-    document.body.removeChild(overlay);
-    document.body.removeChild(popup);
-  };
-
-  popup.appendChild(paymentContainer);
-  popup.appendChild(totalDisplay);
-  popup.appendChild(confirmButton);
-  document.body.appendChild(overlay);
-  document.body.appendChild(popup);
-
-  addPaymentRow(); // Add first row by default
-}
 
 // Add event listener for card checkbox
 document.addEventListener('DOMContentLoaded', function() {
@@ -997,15 +1008,20 @@ function calculateTotal() {
   const discount = parseInt(document.getElementById('discount').value.replace(/[^\d]/g, '') || 0);
 
   const total = admissionFee + rentalPrice + lockerPrice + membershipFee - discount;
-  const combinedPaymentRadio = document.querySelector('input[type="radio"][value="복합결제"]');
   const totalAmount = document.getElementById('total_amount');
   const unpaidField = document.getElementById('unpaid');
 
   totalAmount.value = '₩ ' + total.toLocaleString('ko-KR');
 
+  // ✅ combinedPaymentRadio를 함수 맨 위에서 선언하여 전체 함수에서 사용 가능하도록 변경
+  const combinedPaymentRadio = document.querySelector('input[type="radio"][value="복합결제"]');
+
+  let unpaidAmount = 0;
+  let combinedPaymentTotal = 0;
+
   if (combinedPaymentRadio && combinedPaymentRadio.checked) {
-    const combinedPaymentTotal = getCombinedPaymentTotal();
-    const unpaidAmount = total - combinedPaymentTotal;
+    combinedPaymentTotal = getCombinedPaymentTotal();
+    unpaidAmount = total - combinedPaymentTotal;
     unpaidField.value = '결제예정 ₩' + (unpaidAmount > 0 ? unpaidAmount.toLocaleString('ko-KR') : '0');
     unpaidField.style.backgroundColor = unpaidAmount > 0 ? '#ffebeb' : '#f5f5f5';
   } else {
@@ -1013,8 +1029,12 @@ function calculateTotal() {
     unpaidField.style.backgroundColor = '#f5f5f5';
   }
 
+  // 🎯 콘솔 로그 추가 (복합결제 시 결제예정 금액 계산 포함)
   console.log(`🎯 Total Calculation: ${admissionFee} + ${rentalPrice} + ${lockerPrice} + ${membershipFee} - ${discount} = ${total}`);
+  console.log(`💳 Combined Payment: ${combinedPaymentRadio && combinedPaymentRadio.checked ? combinedPaymentTotal.toLocaleString('ko-KR') : 'N/A'}`);
+  console.log(`📝 Unpaid Amount: ${unpaidAmount.toLocaleString('ko-KR')} 원`);
 }
+
 
 document.addEventListener('DOMContentLoaded', function() {
   const membershipSelect = document.getElementById('membership');
