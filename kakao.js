@@ -65,8 +65,9 @@ async function sendVerificationCode() {
   const phone = document.getElementById('phone').value;
   if (!phone) return;
 
-  const authCode = Math.floor(100000 + Math.random() * 900000);
-
+  const authCode = Math.floor(1000 + Math.random() * 9000);
+  const formattedAuthCode = `"${authCode}"`;
+  
   const params = new URLSearchParams({
     'apikey': API_KEY,
     'userid': USER_ID,
@@ -75,7 +76,7 @@ async function sendVerificationCode() {
     'sender': SENDER_PHONE,
     'receiver_1': phone,
     'subject_1': '인증번호발송',
-    'message_1': `[${COMPANY_NAME}] 본인 확인을 위한 인증번호는 ${authCode}입니다.`,
+    'message_1': `[${COMPANY_NAME}] 본인 확인을 위한 인증번호는 ${formattedAuthCode}입니다.`,
   });
 
   try {
@@ -91,7 +92,7 @@ async function sendVerificationCode() {
       document.getElementById('phone-section').style.display = 'none';
       document.getElementById('admin-button').style.display = 'none';
       window.authCode = authCode;
-      alert("인증번호가 발송되었습니다.");
+      return true;
     } else {
       alert(`인증번호 전송 실패: ${data.message}`);
     }

@@ -72,11 +72,11 @@
 </head>
 
 <body>
-    <script>
+    <script type="module">
         localStorage.clear(); // 모든 localStorage 데이터 삭제
 
-        // Function to show in-page notification
-        function showNotification(message, type) {
+        // Make showNotification available globally
+        window.showNotification = function(message, type) {
             // Check if notification element already exists
             let notification = document.getElementById('notification');
 
@@ -157,7 +157,7 @@
                     </div>
                     <div class="text-center mt-3">
                         <p></p>
-                        <button id="admin-button" class="btn btn-secondary">관리자코드
+                        <button id="admin-button" onclick="showAdminSection()" class="btn btn-secondary">관리자코드
                             입력</button>
                     </div>
                     <div id="verification-success" style="display: none;" class="alert alert-success mt-3">
@@ -178,23 +178,28 @@
         </div>
     </div>
 
-    <script type="module" src="./firebase.js"></script>
-    <script type="module">
-        import { db, auth } from "./firebase.js";
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script type="module" src="./kakao.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAyP5QTMzBtz8lMEzkE4C66CjFbZ3a17QM",
+            authDomain: "bodystar-1b77d.firebaseapp.com",
+            projectId: "bodystar-1b77d",
+            storageBucket: "bodystar-1b77d.firebasestorage.app",
+            messagingSenderId: "1011822927832",
+            appId: "1:1011822927832:web:87f0d859b3baf1d8e21cad"
+        };
 
-        let verificationId = '';
-
-        db.then(dbInstance => {
-            console.log("✅ Firestore 초기화 완료:", dbInstance);
-        });
-
-        auth.then(authInstance => {
-            console.log("✅ Firebase Auth 초기화 완료:", authInstance);
-            authInstance.languageCode = "ko";
-        });
-
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        auth.languageCode = "ko";
 
         // Function moved up to the onclick handler
+
+        let verificationId = '';
 
         let timerInterval;
 
@@ -245,10 +250,54 @@
             const phone = document.getElementById('phone').value;
             if (!phone) return;
 
+            // Define showNotification function if it's not already defined
+            function showNotification(message, type) {
+                // Check if notification element already exists
+                let notification = document.getElementById('notification');
+
+                // If not, create it
+                if (!notification) {
+                    notification = document.createElement('div');
+                    notification.id = 'notification';
+                    notification.className = 'alert alert-info';
+                    notification.style.position = 'fixed';
+                    notification.style.top = '20px';
+                    notification.style.left = '50%';
+                    notification.style.transform = 'translateX(-50%)';
+                    notification.style.padding = '12px 20px';
+                    notification.style.borderRadius = '5px';
+                    notification.style.zIndex = '9999';
+                    notification.style.opacity = '0';
+                    notification.style.transition = 'opacity 0.3s ease-in-out';
+                    notification.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
+                    notification.style.textAlign = 'center';
+                    notification.style.minWidth = '250px';
+                    document.body.appendChild(notification);
+                }
+
+                // Set notification content
+                notification.innerHTML = `<p class="mb-2"><strong>${message}</strong></p>`;
+
+                // Show notification
+                setTimeout(() => {
+                    notification.style.opacity = '1';
+                }, 10);
+
+                // Hide after 3 seconds
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                }, 3000);
+            }
+
             try {
-                const { sendVerificationCode } = await import('./kakao.js');
-                const result = await sendVerificationCode(phone);
+                // Generate auth code first
+                const authCode = Math.floor(1000 + Math.random() * 9000);
+                window.authCode = authCode;
                 
+                // Use the imported function from kakao.js module
+                const { sendVerificationCode } = await import('./kakao.js');
+                const result = await sendVerificationCode(phone, authCode);
+
                 if (result) {
                     document.getElementById('verification-code-section').style.display = 'block';
                     document.getElementById('phone-section').style.display = 'none';
@@ -272,14 +321,15 @@
                     // Start the countdown timer (3 minutes)
                     startTimer(180, timerDisplay);
 
+                    window.authCode = authCode;
                     // Create in-page notification
                     showNotification("인증번호가 발송되었습니다.", "success");
                 } else {
-                    showNotification("인증번호 전송 실패", "error");
+                    showNotification('인증번호 전송 실패', "error");
                 }
             } catch (error) {
                 console.error(error);
-                showNotification('인증번호 전송 실패', "error");
+                showNotification(`인증번호 전송 실패: ${error.message || ''}`, "error");
             }
         });
 
@@ -316,16 +366,7 @@
         // Function to check if the user is an existing member and handle accordingly
         async function checkExistingMember(phoneNumber) {
             try {
-                // Import required Firestore functions
-                const { collection, getDocs, query, where } = await import("https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js");
-                
-                // Get the actual Firestore instance from the Promise
-                const dbInstance = await db;
-                
-                // Create a query using the v9 modular API
-                const membersCollection = collection(dbInstance, "Membership");
-                const q = query(membersCollection);
-                const querySnapshot = await getDocs(q);
+                const querySnapshot = await db.collection("Membership").get();
                 let memberFound = false;
                 let memberData = null;
 
@@ -459,8 +500,6 @@
                 verifyAdmin();
             }
         });
-
-        document.getElementById('admin-button').addEventListener('click', showAdminSection);
     </script>
 </body>
 
