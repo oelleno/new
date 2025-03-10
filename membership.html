@@ -37,6 +37,7 @@
   <script src="./sign.js"></script>
   <script type="module" src="./excel.js"></script>
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./mobile.css">
   <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
   <script src="https://cdn.ckeditor.com/ckeditor5/34.0.0/classic/ckeditor.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -409,7 +410,7 @@
 
               if (shouldLoad && phone) {
                 try {
-                  const querySnapshot = await db.collection("회원가입계약서").get();
+                  const querySnapshot = await db.collection("Membership").get();
                   querySnapshot.forEach((doc) => {
                     if (doc.data().contact === phone) {
                       const data = doc.data();

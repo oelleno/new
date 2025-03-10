@@ -1,6 +1,28 @@
-
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
-import { db } from "./firebase.js";
+
+// Firebase 초기화 함수 가져오기
+async function initializeFirebase() {
+  // Firebase 환경 변수 가져오기
+  async function getFirebaseConfig() {
+    const response = await fetch("https://us-central1-bodystar-1b77d.cloudfunctions.net/getFirebaseConfig");
+    return await response.json();
+  }
+
+  // Firebase 초기화
+  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js");
+  const { getFirestore } = await import("https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js");
+  const { getStorage } = await import("https://www.gstatic.com/firebasejs/11.3.0/firebase-storage.js");
+  const { getAuth } = await import("https://www.gstatic.com/firebasejs/11.3.0/firebase-auth.js");
+
+  const firebaseConfig = await getFirebaseConfig();
+  const app = initializeApp(firebaseConfig, "kakao-app");
+
+  return {
+    db: getFirestore(app),
+    storage: getStorage(app),
+    auth: getAuth(app)
+  };
+}
 
 // 공통 상수 선언
 const API_KEY = 'lcrmiph2rvyuaqiq1qp3lbs332di0x95';
@@ -8,7 +30,7 @@ const USER_ID = 'bodystar';
 const SENDER_KEY = 'b4c886fa9bd3cbf1faddb759fa6532867844ef03';
 const SENDER_PHONE = '01092792273';
 const COMPANY_NAME = '바디스타';
-const MANAGER_PHONE = '01086871992';  // 매니저 알람톡 수신 전화번호
+// Manager phone will be fetched from Firebase when needed
 
 // 카카오 알림톡 API 호출 함수
 async function sendKakaoAlimtalk(params) {
@@ -85,7 +107,11 @@ async function getContractData() {
     throw new Error('계약서 번호(docId)가 없습니다.');
   }
 
-  const docRef = doc(db, "회원가입계약서", window.docId);
+  // Firebase 인스턴스 가져오기
+  const firebaseInstance = await initializeFirebase();
+  const dbInstance = firebaseInstance.db;
+
+  const docRef = doc(dbInstance, "Membership", window.docId);
   const docSnap = await getDoc(docRef).catch(err => {
     console.error("Firestore getDoc 오류:", err);
     throw new Error('계약서 정보 조회 중 오류가 발생했습니다.');
@@ -129,7 +155,7 @@ async function sendKakaoMember() {
       'senderkey': SENDER_KEY,
       'tpl_code': 'TY_1680',
       'sender': SENDER_PHONE,
-      'receiver_1': customerPhone, 
+      'receiver_1': customerPhone,
       'subject_1': '계약서',
       'message_1': `[${COMPANY_NAME}]\n안녕하세요. ${customerName}님!\n${COMPANY_NAME}에 등록해주셔서 진심으로 감사드립니다!`,
       'button_1': JSON.stringify({
@@ -156,33 +182,77 @@ async function sendKakaoMember() {
 }
 
 // 매니저 알림톡 (계약서 도착 알림)
+// 매니저 폰번호 가져오기 함수
+async function getManagerPhone() {
+  try {
+    const { getDoc } = await import("https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js");
+
+    // Firebase 인스턴스 가져오기
+    const firebaseInstance = await initializeFirebase();
+    const dbInstance = firebaseInstance.db;
+
+    try {
+      const docRef = doc(dbInstance, "AdminSettings", "settings");
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        return docSnap.data().managerPhone;
+      }
+    } catch (err) {
+      console.log("AdminSettings 접근 권한 없음, 기본 전화번호 사용:", err.message);
+    }
+    
+    // 관리자 정보 없거나 권한 없을 경우 기본값 반환
+    return '01092792273';
+  } catch (error) {
+    console.error("매니저 전화번호 로딩 오류:", error);
+    return '01092792273'; // 오류 시 기본값 반환
+  }
+}
+
 async function sendKakaoManager() {
   try {
     const userData = await getContractData();
-    const customerName = userData.name;
     const contractUrl = userData.imageUrl.replace('https://', '');
+    const 계약서 = '회원가입계약서';
+
+    // 매니저 전화번호 가져오기
+    const managerPhone = await getManagerPhone();
 
     const params = new URLSearchParams({
       'apikey': API_KEY,
       'userid': USER_ID,
       'senderkey': SENDER_KEY,
-      'tpl_code': 'TY_1680',
+      'tpl_code': 'TY_4677',
       'sender': SENDER_PHONE,
-      'receiver_1': MANAGER_PHONE,
-      'subject_1': '계약서',
-      'message_1': `[매니저알림]\n안녕하세요. ${customerName}님!\n${COMPANY_NAME}에 등록해주셔서 진심으로 감사드립니다!`,
-      'button_1': JSON.stringify({
-        "button": [
-          { "name": "채널추가", "linkType": "AC", "linkTypeName": "채널 추가" },
-          {
-            "name": "계약서 바로가기",
-            "linkType": "WL",
-            "linkTypeName": "웹링크",
-            "linkPc": `https://${contractUrl}`,
-            "linkMo": `https://${contractUrl}`
-          }
-        ]
-      }),
+      'receiver_1': managerPhone,
+      'subject_1': '계약알림',
+      'emtitle_1': `${계약서} 도착!`,
+      'message_1': `[${userData.branch},${userData.contract_manager}]\n`
+        + `■ ${userData.docId}/${userData.gender}/${userData.birthdate}\n`
+        + `■ 회원권: ${userData.membership}, ${userData.membership_months}개월\n`
+        + `■ 총금액: ${userData.totalAmount ? userData.totalAmount.replace('₩', '').replace('₩ ', '').trim() + '원' : '0원'}\n`
+        + `■ 결제예정: ${userData.unpaid ? userData.unpaid.replace('결제예정 ', '').replace('₩', '').replace('₩ ', '').trim() + '원' : '전액결제완료'}\n`
+        + `■ 가입경로: ${userData.referral_sources.map(ref => ref.source + (ref.detail ? `: ${ref.detail}` : '')).join(', ')}\n`,
+      // JSON 형태의 문자열을 올바르게 이스케이프 처리
+      'button_1': `{
+              \"button\": [
+                {
+                  \"name\": \"계약서 바로가기\",
+                  \"linkType\": \"WL\",
+                  \"linkTypeName\": \"웹링크\",
+                  \"linkPc\": \"https://${contractUrl}\",
+                  \"linkMo\": \"https://${contractUrl}\"
+                },
+                {
+                  \"name\": \"영수증 바로가기\",
+                  \"linkType\": \"WL\",
+                  \"linkTypeName\": \"웹링크\",
+                  \"linkPc\": \"${userData.receipts?.[0]?.url || contractUrl}\",
+                  \"linkMo\": \"${userData.receipts?.[0]?.url || contractUrl}\"
+                }
+              ]
+            }`,
       'failover': 'N'
     });
 

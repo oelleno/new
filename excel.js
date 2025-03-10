@@ -3,20 +3,26 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, getDownloadURL, uploadBytesResumable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-// Firebase 설정
-const firebaseConfig = {
-  apiKey: "AIzaSyAyP5QTMzBtz8lMEzkE4C66CjFbZ3a17QM",
-  authDomain: "bodystar-1b77d.firebaseapp.com",
-  projectId: "bodystar-1b77d",
-  storageBucket: "bodystar-1b77d.firebasestorage.app",
-  messagingSenderId: "1011822927832",
-  appId: "1:1011822927832:web:87f0d859b3baf1d8e21cad"
-};
+// Firebase 설정 가져오기
+async function getFirebaseConfig() {
+    const response = await fetch("https://us-central1-bodystar-1b77d.cloudfunctions.net/getFirebaseConfig");
+    return await response.json();
+}
 
-// Firebase 초기화
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
+// Firebase 초기화를 위한 함수
+let app, db, storage;
+
+async function initializeFirebase() {
+  const firebaseConfig = await getFirebaseConfig();
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  storage = getStorage(app);
+}
+
+// 초기화 실행
+initializeFirebase().catch(error => {
+  console.error("Firebase 초기화 오류:", error);
+});
 
 // 엑셀 파일명 설정
 const fileName = "contract.xlsx";
@@ -30,7 +36,7 @@ export async function excelupload() {
 
   try {
     // Firestore에서 특정 문서 가져오기
-    const docRef = doc(db, "회원가입계약서", docId);
+    const docRef = doc(db, "Membership", docId);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -87,7 +93,7 @@ export async function excelupload() {
     // 기존 엑셀 파일 가져오기
     let workbook;
     let existingData = [];
-    const sheetName = "회원가입계약서";
+    const sheetName = "회원가입계약서"; // 변경된 시트 이름
     const headerRow = [
       "ID", "지점", "계약담당자", "이름", "연락처", "성별",
       "생년월일", "주소", "회원권", "운동복대여", "라커대여",
@@ -147,7 +153,7 @@ export async function excelupload() {
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
-    const fileRef = ref(storage, fileName);
+    const fileRef = ref(storage, `Membership/${window.docId}/${fileName}`); // 변경된 경로
     await uploadBytesResumable(fileRef, blob);
 
     const uploadBtn = document.getElementById("excel-upload-btn");
@@ -155,7 +161,7 @@ export async function excelupload() {
     uploadBtn.disabled = true;
     uploadBtn.classList.remove("blink-border"); // 반짝임 효과 제거
     console.log("✅ 엑셀 업데이트가 성공적으로 완료되었습니다!");
-    
+
     // 모든 작업 완료 여부 확인 - 부모창의 함수 호출
     if (window.parent && window.parent.checkAllActionsCompleted) {
       window.parent.checkAllActionsCompleted();
